@@ -4,12 +4,8 @@ from collections import Counter
 ComplementMap = {"A": "T", "C": "G" , "G": "C", "T": "A"}
 
 
-def PatternCount(Pattern, Text):
-    count = 0
-    for i in range(len(Text)-len(Pattern)+1):
-        if Text[i:i+len(Pattern)] == Pattern:
-            count = count+1
-    return count
+def PatternCount(Pattern, Text: str):
+    return Text.count(Pattern)
 
 
 def PatternMatching(Pattern, Genome):
@@ -126,3 +122,246 @@ def FasterSymbolArray(Genome, symbol):
         if ExtendedGenome[i+(n//2)-1] == symbol:
             array[i] = array[i]+1
     return array
+
+def SkewArray(Genome: str):
+    """
+    We will keep track of the difference between the total number of occurrences of G and the total number of
+        occurrences of C that we have encountered so far in Genome by using a skew array. This array, denoted Skew,
+        is defined by setting Skew[i] equal to the number of occurrences of G minus the number of occurrences of C
+        in the first i nucleotides of Genome. We also set Skew[0] equal to zero.
+
+        Given a string Genome, we can form its skew array by setting Skew[0] equal to 0,
+        and then ranging﻿ through the genome.  At position i of Genome, if we encounter an A or a T,
+        we set Skew[i+1] equal to Skew[i]; if we encounter a G, we set Skew[i+1] equal to Skew[i]+1;
+        if we encounter a C, we set Skew[i+1] equal to Skew[i]-1.
+    :return: SkewArray (see function description)
+    :example:
+        Sample Input:
+            CATGGGCATCGGCCATACGCC
+        Sample Output:
+            0 -1 -1 -1 0 1 2 1 1 1 0 1 2 1 0 0 0 0 -1 0 -1 -2
+    """
+
+    genome_length = len(Genome)
+    skew = [0,] * (genome_length + 1)
+    for i in range(genome_length):
+        if Genome[i] in ['g', 'G']:
+            skew[i + 1] = skew[i] + 1
+        elif Genome[i] in ['c', 'C']:
+            skew[i + 1] = skew[i] - 1
+        elif Genome[i] in ['t', 'T', 'a', 'A']:
+            skew[i + 1] = skew[i]
+        else:
+            raise ValueError("you should pass correct genome here (only letters a,c,g,t in any case are allowed)")
+    return skew
+
+
+def MinimumSkew(Genome):
+    """
+    generate an empty list positions
+        set a variable equal to SkewArray(Genome)
+        find the minimum value of all values in the skew array
+        range over the length of the skew array and add all positions achieving the min to positions
+    :param Genome: A DNA string. 
+    :return: All integer(s) i minimizing Skew[i] among all values of i (from 0 to len(Genome)).
+    :example:
+        Sample Input:
+            TAAAGACTGCCGAGAGGCCAACACGAGTGCTAGAACGAGGGGCGTAAACGCGGGTCCGAT
+        Sample Output:
+            11 24 (indexes of all minimal items)
+    """
+    result = SkewArray(Genome)
+    min_item = result[0]
+    min_index = [0]
+    for index, x in enumerate(result[1:]):
+        if x < min_item:
+            min_index = [index + 1]
+            min_item = x
+        elif x == min_item:
+            min_index.append(index + 1)
+    return min_index
+
+
+def HammingDistance(p, q):
+    """
+    Compute the Hamming distance between two strings.
+    :return: The Hamming distance between these strings.
+    :example:
+        Sample Input:
+            GGGCCGTTGGT
+            GGACCGTTGAC
+        Sample Output:
+            3
+    """
+    result = 0
+    for x, y in zip(p, q):
+        if x != y:
+            result += 1
+    return result + abs(len(p) - len(q))
+
+
+def ApproximatePatternMatching(Genome, Pattern, d=3):
+    """
+    Find all approximate occurrences of a pattern in a string.
+        We say that a k-mer Pattern appears as a substring of Text with at most d mismatches if there is some
+        k-mer substring Pattern' of Text having d or fewer mismatches with Pattern; that is,
+        HammingDistance(Pattern, Pattern') ≤ d.
+        Our observation that a DnaA box may appear with slight variations leads to the following generalization
+        of the Pattern Matching Problem.
+    :param Genome: Genome in which search is occur.
+    :param Pattern: Pattern which is been looking for.
+    :param d: Maximal Hamming distance between string to call them approximately equal.
+    :return:  All starting positions where Pattern appears as a substring of Text with at most d mismatches.
+    :example:
+        Sample Input:
+            CGCCCGAATCCAGAACGCATTCCCATATTTCGGGACCACTGGCCTCCACGGTACGGACGTCAATCAAAT
+            ATTCTGGA
+            3
+        Sample Output:
+            6 7 26 27
+    """
+    positions = []
+    for i in range(len(Genome)-len(Pattern)+1):
+        if HammingDistance(Genome[i:i+len(Pattern)], Pattern) <= d:
+            positions.append(i)
+    return positions
+
+
+def ApproximatePatternCount(Pattern, Genome, d=3):
+    """
+    Given input strings Text and Pattern as well as an integer d, we extend the definition of PatternCount
+        to the function ApproximatePatternCount(Pattern, Text, d).
+        This function computes the number of occurrences of Pattern in Text with at most d mismatches.
+    :example:
+        Sample Input:
+            GAGG
+            TTTAGAGCCTTCAGAGG
+            2
+            Note! Param order is different from ApproximatePatternMatching function due to course source checking system
+        Sample Output:
+            4
+    """
+    count = 0
+    for i in range(len(Genome) - len(Pattern) + 1):
+        if HammingDistance(Genome[i:i+len(Pattern)], Pattern) <= d:
+            count = count + 1
+    return count
+
+
+def CountMotifs(motifs: list) -> dict:
+    """
+    Function takes a list of strings Motifs as input and returns the count matrix of Motifs (as a dictionary of lists).
+    :param motif: a list of strings which represent a genome part
+    :return: dictionary where keys are A, C, G, T and values are list with their occurrences in patterns
+        on that index.
+    :example:
+    Sample Input:
+        AACGTA
+        CCCGTT
+        CACCTT
+        GGATTA
+        TTCCGG
+    Sample Output:
+        {'A': [1, 2, 1, 0, 0, 2], 'C': [2, 1, 4, 2, 0, 0], 'G': [1, 1, 0, 2, 1, 1], 'T': [1, 1, 0, 1, 4, 2]}
+    """
+    result = {letter: [0] * len(motifs[0]) for letter in "ACGT"}
+    for i in range(len(motifs[0])):
+        for motif in motifs:
+            result[motif[i]][i] += 1
+    return result
+
+
+def ProfileMotifs(Motifs: list) -> dict:
+    """
+    Function that takes Motifs as input and returns their profile matrix as a dictionary of lists.
+    :param Motifs: A list of kmers Motifs
+    :return: the profile matrix of Motifs, as a dictionary of lists.
+    :example:
+    Sample Input:
+        AACGTA
+        CCCGTT
+        CACCTT
+        GGATTA
+        TTCCGG
+    Sample Output:
+        {'A': [0.2, 0.4, 0.2, 0.0, 0.0, 0.4], 'C': [0.4, 0.2, 0.8, 0.4, 0.0, 0.0], 'G': [0.2, 0.2, 0.0, 0.4, 0.2, 0.2], 'T': [0.2, 0.2, 0.0, 0.2, 0.8, 0.4]}
+    """
+    result = {key: [i / len(Motifs) for i in value] for key, value in CountMotifs(Motifs).items()}
+    return result
+
+
+def Consensus(Motifs: list) -> str:
+    """
+    Form a consensus string, from the most popular nucleotides in each column of the motif matrix
+        (ties are broken arbitrarily). If we select Motifs correctly from the collection of upstream regions,
+        then Consensus(Motifs) provides a candidate regulatory motif for these regions.
+    :param Motifs: A set of kmers Motifs
+    :return: A consensus string of Motifs.
+    :example:
+    Sample Input:
+        AACGTA
+        CCCGTT
+        CACCTT
+        GGATTA
+        TTCCGG
+    Sample Output:
+        CACCTA
+    """
+    k = len(Motifs[0])
+    count = CountMotifs(Motifs)
+    consensus = ""
+    for j in range(k):
+        m = 0
+        frequentSymbol = ""
+        for symbol in "ACGT":
+            if count[symbol][j] > m:
+                m = count[symbol][j]
+                frequentSymbol = symbol
+        consensus += frequentSymbol
+    return consensus
+
+
+def Score(Motifs: list, consensus: str=None) -> list:
+    """
+    Constructing Consensus(Motifs) and then summing the number of symbols in the j-th column of Motifs
+        that do not match the symbol in position j of the consensus string.
+    :param Motifs: A set of kmers Motifs
+    :param Consensus: Precomputed Consensus, can be ommited
+    :return: The score of these k-mers.
+    :example:
+    Sample Input:
+        AACGTA
+        CCCGTT
+        CACCTT
+        GGATTA
+        TTCCGG
+    Sample Output:
+        14
+    """
+    consensus = Consensus(Motifs) if consensus is None else consensus
+    result = 0
+    for motif in Motifs:
+        for i, letter in enumerate(motif):
+            if letter != consensus[i]:
+                result += 1
+    return result
+
+
+def Pr(Text: str, Profile: list) -> float:
+    """
+    Calculate probability of Text by profile matrix
+    :example:
+    Sample Input:
+        ACGGGGATTACC
+        0.2 0.2 0.0 0.0 0.0 0.0 0.9 0.1 0.1 0.1 0.3 0.0
+        0.1 0.6 0.0 0.0 0.0 0.0 0.0 0.4 0.1 0.2 0.4 0.6
+        0.0 0.0 1.0 1.0 0.9 0.9 0.1 0.0 0.0 0.0 0.0 0.0
+        0.7 0.2 0.0 0.0 0.1 0.1 0.0 0.5 0.8 0.7 0.3 0.4
+    Sample Output:
+        0.0008398080000000002
+    """
+    letter_to_row = {key: i for i, key in enumerate("ACGT")}
+    result = 1
+    for index, letter in enumerate(Text):
+        result *= Profile[letter_to_row[letter]][index]
+    return result
