@@ -119,9 +119,58 @@ class utils_test(unittest.TestCase):
 
     def test_Pr(self):
         correct = 0.0008398080000000002
-        profile = [[0.2, 0.2, 0.0, 0.0, 0.0, 0.0, 0.9, 0.1, 0.1, 0.1, 0.3, 0.0],  # A
-                   [0.1, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.1, 0.2, 0.4, 0.6],  # C
-                   [0.0, 0.0, 1.0, 1.0, 0.9, 0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0],  # G
-                   [0.7, 0.2, 0.0, 0.0, 0.1, 0.1, 0.0, 0.5, 0.8, 0.7, 0.3, 0.4]]  # T
+        profile = { "A": [0.2, 0.2, 0.0, 0.0, 0.0, 0.0, 0.9, 0.1, 0.1, 0.1, 0.3, 0.0],
+                    "C": [0.1, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.1, 0.2, 0.4, 0.6],
+                    "G": [0.0, 0.0, 1.0, 1.0, 0.9, 0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+                    "T": [0.7, 0.2, 0.0, 0.0, 0.1, 0.1, 0.0, 0.5, 0.8, 0.7, 0.3, 0.4]}
         c = Pr("ACGGGGATTACC", profile)
         self.assertEqual(correct, c)
+
+    def test_ProfileMostProbableKmer(self):
+        correct = "CCGAG"
+        profile = { "A": [0.2, 0.2, 0.3, 0.2, 0.3],
+              "C": [0.4, 0.3, 0.1, 0.5, 0.1],
+              "G": [0.3, 0.3, 0.5, 0.2, 0.4],
+              "T": [0.1, 0.2, 0.1, 0.1, 0.2]
+            }
+        c = ProfileMostProbableKmer("ACCTGTTTATTGCCTAAGTTCCGAACAAACCCAATATAGCCCGAGGGCCT", 5, profile)
+        self.assertEqual(correct, c)
+        correct = "CAGCG"
+        profile = { "A": [0.2, 0.2, 0.3, 0.2, 0.3],
+                    "C": [0.4, 0.3, 0.1, 0.5, 0.1],
+                    "G": [0.3, 0.3, 0.5, 0.2, 0.4],
+                    "T": [0.1, 0.2, 0.1, 0.1, 0.2]}
+        c = ProfileMostProbableKmer("TTACCATGGGACCGCTGACTGATTTCTGGCGTCAGCGTGATGCTGGTGTGGATGACATTCCGGTGCGCTTTGTAAGCAGAGTTTA", 5, profile)
+        self.assertEqual(correct, c)
+
+    def test_ProfileMostProbableKmer_ties(self):
+        correct = "AAC"
+        profile = { "A": [0.1, 0.1, 0.1],
+              "C": [0.0, 0.0, 0.0],
+              "G": [0.0, 0.0, 0.0],
+              "T": [0.0, 0.0, 0.0]
+            }
+        c = ProfileMostProbableKmer("AACCGGTT", 3, profile)
+        self.assertEqual(correct, c)
+
+    def test_GreedyMotifSearch(self):
+        correct = ["CAG", "CAG", "CAA", "CAA", "CAA"]
+        dna = ["GGCGTTCAGGCA", "AAGAATCAGTCA", "CAAGGAGTTCGC", "CACGTCAATCAC", "CAATAATATTCG"]
+        c = GreedyMotifSearch(dna, 3)
+        self.assertListEqual(correct, c)
+
+    def test_Entropy(self):
+        correct = 0.971
+        profile = {'A': [0.0], 'C': [0.6], 'G': [0.0], 'T': [0.4]}
+        c = Entropy(profile)
+        self.assertAlmostEqual(correct, c, delta=0.01)
+
+        correct = 9.916290005356972
+        profile = {
+            'A': [0.2, 0.2, 0.0, 0.0, 0.0, 0.0, 0.9, 0.1, 0.1, 0.1, 0.3, 0.0],
+            'C': [0.1, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.1, 0.2, 0.4, 0.6],
+            'G': [0.0, 0.0, 1.0, 1.0, 0.9, 0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0],
+            'T': [0.7, 0.2, 0.0, 0.0, 0.1, 0.1, 0.0, 0.5, 0.8, 0.7, 0.3, 0.4]
+        }
+        c = Entropy(profile)
+        self.assertAlmostEqual(correct, c, delta=0.01)
