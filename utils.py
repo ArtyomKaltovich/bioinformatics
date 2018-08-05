@@ -2,7 +2,7 @@ from collections import Counter
 import math
 
 
-ComplementMap = {"A": "T", "C": "G" , "G": "C", "T": "A"}
+ComplementMap = {"A": "T", "C": "G", "G": "C", "T": "A"}
 
 
 def PatternCount(Pattern, Text: str):
@@ -11,7 +11,7 @@ def PatternCount(Pattern, Text: str):
 
 def PatternMatching(Pattern, Genome):
     """
-    Pattern Matching Problem:  Find all occurrences of a pattern in a Genome.
+    Pattern Matching Problem:  Find indexes of all occurrences of a pattern in a Genome.
     :return: All starting positions in Genome where Pattern appears as a substring.
     :examples: PatternMatching("ATAT","GATATATGCATATACTT") -> 1 3 9
     """
@@ -433,7 +433,7 @@ def Entropy(profile: dict) -> float:
         H(p1,…,pN)=−∑i=1Npi⋅log2pi
     """
     entropy_log = lambda x : x * math.log(x, 2) if x != 0 else 0  # log(0, 2) isn't defined but assumes as 0
-                                                              # in entropy calculations
+                                                                  # in entropy calculations
     result = [[entropy_log(x) for row in list(profile.values()) for x in row ]]
     result = sum([sum(row) for row in result])
     return -result
