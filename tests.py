@@ -4,6 +4,9 @@ from time import process_time
 from utils import *
 
 
+DELTA_FOR_EQUAL_FLOATS = 0.001
+
+
 class utils_test(unittest.TestCase):
     def test_PatternMatching(self):
         c = PatternMatching("ATAT","GATATATGCATATACTT")
@@ -163,7 +166,7 @@ class utils_test(unittest.TestCase):
         correct = 0.971
         profile = {'A': [0.0], 'C': [0.6], 'G': [0.0], 'T': [0.4]}
         c = Entropy(profile)
-        self.assertAlmostEqual(correct, c, delta=0.01)
+        self.assertAlmostEqual(correct, c, delta=DELTA_FOR_EQUAL_FLOATS)
 
         correct = 9.916290005356972
         profile = {
@@ -173,4 +176,58 @@ class utils_test(unittest.TestCase):
             'T': [0.7, 0.2, 0.0, 0.0, 0.1, 0.1, 0.0, 0.5, 0.8, 0.7, 0.3, 0.4]
         }
         c = Entropy(profile)
-        self.assertAlmostEqual(correct, c, delta=0.01)
+        self.assertAlmostEqual(correct, c, delta=DELTA_FOR_EQUAL_FLOATS)
+
+    def CountWithPseudocounts(self):
+        correct = {'A': [2, 3, 2, 1, 1, 3], 'C': [3, 2, 5, 3, 1, 1], 'G': [2, 2, 1, 3, 2, 2], 'T': [2, 2, 1, 2, 5, 3]}
+        c = CountWithPseudocounts(["AACGTA", "CCCGTT", "CACCTT", "GGATTA", "TTCCGG"])
+        self.assertDictEqual(correct, c)
+
+    def test_ProfileWithPseudocounts(self):
+        correct = {'A': [0.2222222222222222, 0.3333333333333333, 0.2222222222222222, 0.1111111111111111, 0.1111111111111111, 0.3333333333333333], 'C': [0.3333333333333333, 0.2222222222222222, 0.5555555555555556, 0.3333333333333333, 0.1111111111111111, 0.1111111111111111], 'G': [0.2222222222222222, 0.2222222222222222, 0.1111111111111111, 0.3333333333333333, 0.2222222222222222, 0.2222222222222222], 'T': [0.2222222222222222, 0.2222222222222222, 0.1111111111111111, 0.2222222222222222, 0.5555555555555556, 0.3333333333333333]}
+        c = ProfileWithPseudocounts(["AACGTA", "CCCGTT", "CACCTT", "GGATTA", "TTCCGG"])
+        self.assertEqual(len(correct), len(c))
+        for row, row2 in zip(correct, c):
+            self.assertEqual(len(row), len(row2))
+            for elem, elem2 in zip(row, row2):
+                self.assertAlmostEqual(elem, elem2, delta=DELTA_FOR_EQUAL_FLOATS)
+
+    def test_GreedyMotifSearchWithPseudocounts(self):
+        correct = ["TTC", "ATC", "TTC", "ATC", "TTC"]
+        dna = ["GGCGTTCAGGCA", "AAGAATCAGTCA", "CAAGGAGTTCGC", "CACGTCAATCAC", "CAATAATATTCG"]
+        c = GreedyMotifSearch(dna, 3, WithPseudocounts=True)
+        c2 = GreedyMotifSearchWithPseudocounts(dna, 3)
+        self.assertListEqual(correct, c)
+        self.assertListEqual(correct, c2)
+
+    def test_Motifs(self):
+        correct = ["ACCT", "ATGT", "GCGT", "ACGA", "AGGT"]
+        dna = ["TTACCTTAAC", "GATGTCTGTC", "ACGGCGTTAG", "CCCTAACGAG", "CGTCAGAGGT"]
+        profile = {'A': [0.8, 0.0, 0.0, 0.2],
+                   'C': [0.0, 0.6, 0.2, 0.0],
+                   'G': [0.2, 0.2, 0.8, 0.0],
+                   'T': [0.0, 0.2, 0.0, 0.8]}
+        c = Motifs(profile, dna)
+        self.assertListEqual(correct, c)
+
+    def test_RandomMotifs(self):
+        # test only number of returned motifs and their length, not value
+        # coz they're random :)
+        correct = ['TTA', 'GAT', 'GGC', 'CTA', 'CGT']
+        dna = ["TTACCTTAAC", "GATGTCTGTC", "ACGGCGTTAG", "CCCTAACGAG", "CGTCAGAGGT"]
+        c = RandomMotifs(dna, 3)
+        self.assertEqual(len(correct), len(c))
+        for elem, elem2 in zip(correct, c):
+            self.assertEqual(len(elem), len(elem2))
+
+    def test_Normalize(self):
+        correct = {'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25}
+        c = Normalize({'A': 0.1, 'C': 0.1, 'G': 0.1, 'T': 0.1})
+        self.assertDictEqual(correct, c)
+
+    def test_WeightedDie(self):
+        # test only length of returned k-mer, not value coz it's random :)
+        probabilities = dict(A=0.25, C=0.25, G=0.25, T=0.25)
+        k = random.randint(1, 100)
+        kmer = WeightedDie(probabilities, k=k)
+        self.assertEqual(k, len(kmer))

@@ -1,5 +1,7 @@
 from collections import Counter
 import math
+import random
+import bisect
 
 
 ComplementMap = {"A": "T", "C": "G", "G": "C", "T": "A"}
@@ -265,8 +267,9 @@ def CountMotifs(motifs: list) -> dict:
     Sample Output:
         {'A': [1, 2, 1, 0, 0, 2], 'C': [2, 1, 4, 2, 0, 0], 'G': [1, 1, 0, 2, 1, 1], 'T': [1, 1, 0, 1, 4, 2]}
     """
-    result = {letter: [0] * len(motifs[0]) for letter in "ACGT"}
-    for i in range(len(motifs[0])):
+    k = len(motifs[0])
+    result = {letter: [0] * k for letter in "ACGT"}
+    for i in range(k):
         for motif in motifs:
             result[motif[i]][i] += 1
     return result
@@ -361,7 +364,6 @@ def Pr(Text: str, Profile: dict) -> float:
     Sample Output:
         0.0008398080000000002
     """
-    letter_to_row = {key: i for i, key in enumerate("ACGT")}
     result = 1
     for index, letter in enumerate(Text):
         result *= Profile[letter][index]
@@ -393,7 +395,7 @@ def ProfileMostProbableKmer(text, k, profile):
     return maximim[0]
 
 
-def GreedyMotifSearch(Dna, k, t=None):
+def GreedyMotifSearch(Dna, k, t=None, WithPseudocounts=False):
     """
     :input:  A list of kmers Dna, and integers k and t (where t is the number of kmers in Dna)
     :example:
@@ -404,23 +406,24 @@ def GreedyMotifSearch(Dna, k, t=None):
         CACGTCAATCAC
         CAATAATATTCG
         3 5
+        False True
     Sample Output:
-        CAG
-        CAG
-        CAA
-        CAA
-        CAA
+        CAG    TTC
+        CAG    ATC
+        CAA    TTC
+        CAA    ATC
+        CAA    TTC
     """
     t = t if t is not None else len(Dna)
+    profile = ProfileWithPseudocounts if WithPseudocounts else ProfileMotifs
     BestMotifs = []
     for i in range(0, t):
         BestMotifs.append(Dna[i][0:k])
     n = len(Dna[0])
     for i in range(n - k + 1):
-        Motifs = []
-        Motifs.append(Dna[0][i:i+k])
+        Motifs = [Dna[0][i:i + k]]
         for j in range(1, t):
-            P = ProfileMotifs(Motifs[0:j])
+            P = profile(Motifs[0:j])
             Motifs.append(ProfileMostProbableKmer(Dna[j], k, P))
         if Score(Motifs) < Score(BestMotifs):
             BestMotifs = Motifs
@@ -437,3 +440,178 @@ def Entropy(profile: dict) -> float:
     result = [[entropy_log(x) for row in list(profile.values()) for x in row ]]
     result = sum([sum(row) for row in result])
     return -result
+
+
+def _increase_all(collection, amount=1):
+    return [elem + amount for elem in collection]
+
+
+def CountWithPseudocounts(Motifs):
+    """
+    Takes a list of strings Motifs as input and returns the count matrix of Motifs with
+        pseudocounts (counts increased by 1) as a dictionary of lists
+    :param Motifs:  A set of kmers Motifs
+    :example:
+    Sample Input:
+        AACGTA
+        CCCGTT
+        CACCTT
+        GGATTA
+        TTCCGG
+    Sample Output:
+        {'A': [2, 3, 2, 1, 1, 3], 'C': [3, 2, 5, 3, 1, 1], 'G': [2, 2, 1, 3, 2, 2], 'T': [2, 2, 1, 2, 5, 3]}
+    """
+    result = CountMotifs(Motifs)
+    result = {key: _increase_all(value) for key, value in result.items()}
+    return result
+
+
+def ProfileWithPseudocounts(Motifs: list) -> dict:
+    """
+    Takes a list of strings Motifs as input and returns the profile matrix of Motifs
+        with pseudocounts as a dictionary of lists
+    :param Motifs: A list of kmers Motifs
+    :return: the profile matrix of Motifs, as a dictionary of lists.
+    :example:
+    Sample Input:
+        AACGTA
+        CCCGTT
+        CACCTT
+        GGATTA
+        TTCCGG
+    Sample Output:
+        {'A': [0.2222222222222222, 0.3333333333333333, 0.2222222222222222, 0.1111111111111111, 0.1111111111111111, 0.3333333333333333], 'C': [0.3333333333333333, 0.2222222222222222, 0.5555555555555556, 0.3333333333333333, 0.1111111111111111, 0.1111111111111111], 'G': [0.2222222222222222, 0.2222222222222222, 0.1111111111111111, 0.3333333333333333, 0.2222222222222222, 0.2222222222222222], 'T': [0.2222222222222222, 0.2222222222222222, 0.1111111111111111, 0.2222222222222222, 0.5555555555555556, 0.3333333333333333]}
+    """
+    n = len(Motifs) + 4
+    result = {key: [i / n for i in value] for key, value in CountWithPseudocounts(Motifs).items()}
+    return result
+
+
+def GreedyMotifSearchWithPseudocounts(Dna, k, t=None):
+    return GreedyMotifSearch(Dna, k, t, True)
+
+
+def Motifs(Profile, Dna):
+    """
+    Takes a profile matrix Profile corresponding to a list of strings Dna as input and returns
+        a list of the Profile-most probable k-mers in each string from Dna.
+    :example:
+    Sample Input:
+        0.8 0.0 0.0 0.2
+        0.0 0.6 0.2 0.0
+        0.2 0.2 0.8 0.0
+        0.0 0.2 0.0 0.8
+        TTACCTTAAC
+        GATGTCTGTC
+        ACGGCGTTAG
+        CCCTAACGAG
+        CGTCAGAGGT
+    Sample Output:
+        ACCT
+        ATGT
+        GCGT
+        ACGA
+        AGGT
+    """
+    k = len(Profile["A"])
+    return [ProfileMostProbableKmer(dna, k, profile=Profile) for dna in Dna]
+
+
+def RandomMotifs(Dna, k, t=None):
+    """
+     Choose a random k-mer from each of t different strings Dna, and returns a list of t strings
+    """
+    t = t or len(Dna)
+    n = len(Dna[0])
+    result = []
+    for dna in Dna[:t]:
+        r = random.randint(0, n - k)
+        result.append(dna[r: r + k])
+    return result
+
+
+def RandomizedMotifSearch(Dna, k, t=None, StartMotif=None):
+    """
+    Takes a profile matrix Profile corresponding to a list of strings Dna as input and returns
+        a list of the Profile-most probable k-mers in each string from Dna.
+    :example:
+    Sample Input:
+        CGCCCCTCTCGGGGGTGTTCAGTAAACGGCCA
+        GGGCGAGGTATGTGTAAGTGCCAAGGTGCCAG
+        TAGTACCGAGACCGAAAGAAGTATACAGGCGT
+        TAGATCAAGTTTCAGGTGCACGTCGGTGAACC
+        AATCCACCAGCTCCACGTGCAATGTTGGCCTA
+        8 5
+    Sample Output:
+        CGGGGGTG
+        TGTAAGTG
+        TACAGGCG
+        TTCAGGTG
+        TCCACGTG
+    """
+    M = StartMotif if StartMotif else RandomMotifs(Dna, k, t)
+    BestMotifs = M
+    while True:
+        Profile = ProfileWithPseudocounts(M)
+        M = Motifs(Profile, Dna)
+        if Score(M) < Score(BestMotifs):
+            BestMotifs = M
+        else:
+            return BestMotifs
+
+
+def Normalize(Probabilities: dict) -> dict:
+    """
+    Rescale a collection of probabilities (the sides of the die) so that these probabilities sum to 1
+    :param Probabilities: dictionary whose keys are k-mers and whose values are the probabilities of these k-mers
+    :example:
+    Sample Input:
+        {'A': 0.1, 'C': 0.1, 'G': 0.1, 'T': 0.1}
+    Sample Output:
+        {'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25}
+    """
+    s = sum(Probabilities.values())
+    return {key: value / s for key, value in Probabilities.items()}
+
+
+def WeightedDie(Probabilities, k=1):
+    """
+    Takes a dictionary Probabilities whose keys are k-mers and whose values are the probabilities of these k-mers.
+        The function should return a randomly chosen k-mer key with respect to the values in Probabilities.
+    """
+    kmer = ''
+    items, probs = zip(*Probabilities.items())      # unpack dict to two tuples
+    probs = list(probs)                             # make probs list, coz they will be change two sums
+    for i in range(1, len(probs)):                  # convert list of probabilities to list of sums of p
+        probs[i] += probs[i - 1]                    # of previous elements for binary search
+    for _ in range(k):
+        p = random.random()
+        i = bisect.bisect_right(probs, p)
+        kmer += items[i]
+    return kmer
+
+
+def ProfileGeneratedString(dna, profile, k):
+    """Generate random k-mer based on probabilities of letter in dna.
+    Range over all possible k-mers in Text, computing the probability of each one and placing this probability into a dictionary.
+    Then normalize these probabilities using the Normalize(probabilities) subroutine,
+        and return the result of rolling a weighted die over this dictionary to produce a k-mer.
+    """
+    n = len(dna)
+    probabilities = {}
+    for i in range(0, n - k + 1):
+        probabilities[dna[i:i+k]] = Pr(dna[i:i+k], profile)
+    probabilities = Normalize(probabilities)
+    return WeightedDie(probabilities)
+
+
+def GibbsSampler(dna, k, t, N):
+    motifs = RandomMotifs(dna, k, t)
+    BestMotifs = motifs
+    for _ in range(N):
+        line_index = random.randint(0, t - 1)
+        profile = ProfileWithPseudocounts(motifs[0:line_index] + motifs[line_index:])
+        motifs[line_index] = ProfileGeneratedString(dna[line_index], profile, k)
+        if Score(motifs) < Score(BestMotifs):
+            BestMotifs = motifs
+        return BestMotifs
